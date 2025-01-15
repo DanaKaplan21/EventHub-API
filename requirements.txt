@@ -1,5 +1,5 @@
-Flask
-Flasgger
-python-dotenv
-pymongo[srv]
-gunicorn
+Flask==2.3.3
+Flask-Cors==3.0.10
+pymongo==4.5.0
+python-dotenv==1.0.0
+gunicorn==20.1.0
