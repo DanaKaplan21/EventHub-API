@@ -46,7 +46,7 @@ def test_db():
 @app.route('/api/users', methods=['GET'])
 def get_users():
     try:
-        if not users:
+        if users is None:  # בדיקה מפורשת
             return jsonify({"error": "Database not connected"}), 500
 
         all_users = list(users.find({}, {'_id': False}).limit(100))
@@ -55,6 +55,7 @@ def get_users():
         return jsonify(all_users), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/users', methods=['POST'])
 def create_user():
