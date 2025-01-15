@@ -46,7 +46,7 @@ def test_db():
 @app.route('/api/users', methods=['GET'])
 def get_users():
     """
-    Retrieve all users from the database with a limit to avoid timeouts
+    Retrieve all users from the database with a limit to avoid timeouts.
     ---
     responses:
       200:
@@ -57,25 +57,26 @@ def get_users():
     try:
         # בדיקת חיבור למסד הנתונים
         if users is None:
-            print("Database connection failed")
+            print("[ERROR] Database connection failed")
             return jsonify({"error": "Database connection failed"}), 500
 
-        print("Querying users collection...")
+        print("[INFO] Querying users collection...")
+
         # הגבלת מספר המשתמשים המוחזרים ל-10
         all_users = list(users.find({}, {'_id': False}).limit(10))
 
         # בדיקה אם אין משתמשים במסד הנתונים
         if not all_users:
-            print("No users found in the database")
+            print("[INFO] No users found in the database")
             return jsonify({"message": "No users found"}), 200
 
-        print(f"Successfully retrieved {len(all_users)} users")
+        print(f"[INFO] Successfully retrieved {len(all_users)} users")
         return jsonify(all_users), 200
 
     except Exception as e:
-        # הצגת שגיאה אם משהו נכשל
-        print(f"Error while querying users: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        # טיפול בשגיאה כללית
+        print(f"[ERROR] Error while querying users: {str(e)}")
+        return jsonify({"error": "An internal server error occurred"}), 500
 
 
 
