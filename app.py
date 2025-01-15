@@ -25,6 +25,13 @@ except Exception as e:
 def home():
     return "API is running!"
 
+@app.route('/api/data', methods=['GET'])
+def get_data():
+    """
+    Return a simple static response for testing.
+    """
+    return jsonify({"data": "This is some data!"}), 200
+
 @app.route('/api/test-db', methods=['GET'])
 def test_db():
     try:
