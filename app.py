@@ -1,98 +1,127 @@
+
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
-from my_collections.user_collection import UserCollection
-from my_collections.event_collection import EventCollection
-from my_collections.guest_collection import GuestCollection
-from my_collections.reminder_collection import ReminderCollection
+from dotenv import load_dotenv
+import os
 
+# Load environment variables
+load_dotenv()
+
+port = os.getenv('PORT', 5000)  # ברירת מחדל ל-5000 אם PORT לא מוגדר
+db_uri = os.getenv('DB_URI', 'mongodb://localhost:27017')
 
 app = Flask(__name__)
 
-# MongoDB Connection
-client = MongoClient('mongodb://localhost:27017')
-db = client['mydatabase']
-
-# Initialize Collections
-user_collection = UserCollection(db)
-event_collection = EventCollection(db)
-guest_collection = GuestCollection(db)
-reminder_collection = ReminderCollection(db)
+# Connect to MongoDB
+try:
+    client = MongoClient(db_uri)
+    db = client['mydatabase']
+    users = db['users']
+except Exception as e:
+    print(f"Error connecting to MongoDB: {e}")
+    db = None
+    users = None
 
 @app.route('/', methods=['GET'])
 def home():
-    return "API is running!", 200
+    return "API is running!"
 
-# Users Routes
-@app.route('/api/users', methods=['GET'])
-def get_users():
+@app.route('/api/data', methods=['GET'])
+def get_data():
+    """
+    Return a simple static response for testing.
+    """
+    return jsonify({"data": "This is some data!"}), 200
+
+@app.route('/api/test-db', methods=['GET'])
+def test_db():
     try:
-        users = user_collection.get_all_users()
-        return jsonify(users), 200
+        db_names = client.list_database_names()
+        if 'mydatabase' in db_names:
+            return "Connection to MongoDB is successful!", 200
+        else:
+            return "Database not found.", 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    """
+    Retrieve all users from the database with a limit to avoid timeouts.
+    ---
+    responses:
+      200:
+        description: Returns a list of users
+      500:
+        description: Internal server error
+    """
+    try:
+        # בדיקת חיבור למסד הנתונים
+        if users is None:
+            print("[ERROR] Database connection failed")
+            return jsonify({"error": "Database connection failed"}), 500
+
+        print("[INFO] Querying users collection...")
+
+        # הגבלת מספר המשתמשים המוחזרים ל-10
+        all_users = list(users.find({}, {'_id': False}).limit(10))
+
+        # בדיקה אם אין משתמשים במסד הנתונים
+        if not all_users:
+            print("[INFO] No users found in the database")
+            return jsonify({"message": "No users found"}), 200
+
+        print(f"[INFO] Successfully retrieved {len(all_users)} users")
+        return jsonify(all_users), 200
+
+    except Exception as e:
+        # טיפול בשגיאה כללית
+        print(f"[ERROR] Error while querying users: {str(e)}")
+        return jsonify({"error": "An internal server error occurred"}), 500
+
+
 
 @app.route('/api/users', methods=['POST'])
 def create_user():
     try:
-        user_data = request.json
-        user_id = user_collection.add_user(user_data)
-        return jsonify({"message": f"User added with ID: {user_id}"}), 201
+        if not request.is_json:
+            return jsonify({"error": "Request content type must be 'application/json'"}), 415
+
+        data = request.json
+        if not data or "name" not in data or "email" not in data:
+            return jsonify({"error": "Invalid data"}), 400
+
+        users.insert_one(data)
+        return jsonify({"message": "User added successfully"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Events Routes
-@app.route('/api/events', methods=['GET'])
-def get_events():
+@app.route('/api/users/<email>', methods=['PUT'])
+def update_user(email):
     try:
-        events = event_collection.get_all_events()
-        return jsonify(events), 200
+        data = request.json
+        if not data:
+            return jsonify({"error": "Invalid data"}), 400
+
+        result = users.update_one({"email": email}, {"$set": data})
+        if result.matched_count == 0:
+            return jsonify({"error": "User not found"}), 404
+
+        return jsonify({"message": "User updated successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/events', methods=['POST'])
-def create_event():
+@app.route('/api/users/<email>', methods=['DELETE'])
+def delete_user(email):
     try:
-        event_data = request.json
-        event_id = event_collection.add_event(event_data)
-        return jsonify({"message": f"Event created with ID: {event_id}"}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        result = users.delete_one({"email": email})
+        if result.deleted_count == 0:
+            return jsonify({"error": "User not found"}), 404
 
-# Guests Routes
-@app.route('/api/guests/<event_id>', methods=['GET'])
-def get_guests(event_id):
-    try:
-        guests = guest_collection.get_guests_by_event(event_id)
-        return jsonify(guests), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/guests', methods=['POST'])
-def add_guest():
-    try:
-        guest_data = request.json
-        guest_id = guest_collection.add_guest(guest_data)
-        return jsonify({"message": f"Guest added with ID: {guest_id}"}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# Reminders Routes
-@app.route('/api/reminders/<event_id>', methods=['GET'])
-def get_reminders(event_id):
-    try:
-        reminders = reminder_collection.get_reminders_by_event(event_id)
-        return jsonify(reminders), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/reminders', methods=['POST'])
-def create_reminder():
-    try:
-        reminder_data = request.json
-        reminder_id = reminder_collection.add_reminder(reminder_data)
-        return jsonify({"message": f"Reminder created with ID: {reminder_id}"}), 201
+        return jsonify({"message": "User deleted successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(port), debug=True)
+
