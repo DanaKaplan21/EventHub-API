@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -7,7 +6,7 @@ import os
 # Load environment variables
 load_dotenv()
 
-port = os.getenv('PORT', 5000)  # ברירת מחדל ל-5000 אם PORT לא מוגדר
+port = os.getenv('PORT', 5000)  # Default to 5000 if PORT is not defined
 db_uri = os.getenv('DB_URI', 'mongodb://localhost:27017')
 
 app = Flask(__name__)
@@ -17,80 +16,35 @@ try:
     client = MongoClient(db_uri)
     db = client['mydatabase']
     users = db['users']
+    events = db['events']
+    guests = db['guests']
+    reminders = db['reminders']
 except Exception as e:
     print(f"Error connecting to MongoDB: {e}")
     db = None
     users = None
+    events = None
+    guests = None
+    reminders = None
 
 @app.route('/', methods=['GET'])
 def home():
     return "API is running!"
 
-@app.route('/api/data', methods=['GET'])
-def get_data():
-    """
-    Return a simple static response for testing.
-    """
-    return jsonify({"data": "This is some data!"}), 200
-
-@app.route('/api/test-db', methods=['GET'])
-def test_db():
-    try:
-        db_names = client.list_database_names()
-        if 'mydatabase' in db_names:
-            return "Connection to MongoDB is successful!", 200
-        else:
-            return "Database not found.", 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+### **Users Routes**
 
 @app.route('/api/users', methods=['GET'])
 def get_users():
-    """
-    Retrieve all users from the database with a limit to avoid timeouts.
-    ---
-    responses:
-      200:
-        description: Returns a list of users
-      500:
-        description: Internal server error
-    """
     try:
-        # בדיקת חיבור למסד הנתונים
-        if users is None:
-            print("[ERROR] Database connection failed")
-            return jsonify({"error": "Database connection failed"}), 500
-
-        print("[INFO] Querying users collection...")
-
-        # הגבלת מספר המשתמשים המוחזרים ל-10
-        all_users = list(users.find({}, {'_id': False}).limit(10))
-
-        # בדיקה אם אין משתמשים במסד הנתונים
-        if not all_users:
-            print("[INFO] No users found in the database")
-            return jsonify({"message": "No users found"}), 200
-
-        print(f"[INFO] Successfully retrieved {len(all_users)} users")
+        all_users = list(users.find({}, {'_id': False}))
         return jsonify(all_users), 200
-
     except Exception as e:
-        # טיפול בשגיאה כללית
-        print(f"[ERROR] Error while querying users: {str(e)}")
-        return jsonify({"error": "An internal server error occurred"}), 500
-
-
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/users', methods=['POST'])
 def create_user():
     try:
-        if not request.is_json:
-            return jsonify({"error": "Request content type must be 'application/json'"}), 415
-
         data = request.json
-        if not data or "name" not in data or "email" not in data:
-            return jsonify({"error": "Invalid data"}), 400
-
         users.insert_one(data)
         return jsonify({"message": "User added successfully"}), 201
     except Exception as e:
@@ -100,13 +54,9 @@ def create_user():
 def update_user(email):
     try:
         data = request.json
-        if not data:
-            return jsonify({"error": "Invalid data"}), 400
-
         result = users.update_one({"email": email}, {"$set": data})
         if result.matched_count == 0:
             return jsonify({"error": "User not found"}), 404
-
         return jsonify({"message": "User updated successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -117,11 +67,97 @@ def delete_user(email):
         result = users.delete_one({"email": email})
         if result.deleted_count == 0:
             return jsonify({"error": "User not found"}), 404
-
         return jsonify({"message": "User deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+### **Events Routes**
+
+@app.route('/api/events', methods=['GET'])
+def get_events():
+    try:
+        all_events = list(events.find({}, {'_id': False}))
+        return jsonify(all_events), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/events', methods=['POST'])
+def create_event():
+    try:
+        data = request.json
+        events.insert_one(data)
+        return jsonify({"message": "Event created successfully"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/events/<event_id>', methods=['PUT'])
+def update_event(event_id):
+    try:
+        data = request.json
+        result = events.update_one({"_id": event_id}, {"$set": data})
+        if result.matched_count == 0:
+            return jsonify({"error": "Event not found"}), 404
+        return jsonify({"message": "Event updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/events/<event_id>', methods=['DELETE'])
+def delete_event(event_id):
+    try:
+        result = events.delete_one({"_id": event_id})
+        if result.deleted_count == 0:
+            return jsonify({"error": "Event not found"}), 404
+        return jsonify({"message": "Event deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+### **Guests Routes**
+
+@app.route('/api/guests/<event_id>', methods=['GET'])
+def get_guests(event_id):
+    try:
+        event_guests = list(guests.find({"event_id": event_id}, {'_id': False}))
+        return jsonify(event_guests), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/guests', methods=['POST'])
+def add_guest():
+    try:
+        data = request.json
+        guests.insert_one(data)
+        return jsonify({"message": "Guest added successfully"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/guests/<guest_id>', methods=['DELETE'])
+def delete_guest(guest_id):
+    try:
+        result = guests.delete_one({"_id": guest_id})
+        if result.deleted_count == 0:
+            return jsonify({"error": "Guest not found"}), 404
+        return jsonify({"message": "Guest deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+### **Reminders Routes**
+
+@app.route('/api/reminders/<event_id>', methods=['GET'])
+def get_reminders(event_id):
+    try:
+        event_reminders = list(reminders.find({"event_id": event_id}, {'_id': False}))
+        return jsonify(event_reminders), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/reminders', methods=['POST'])
+def create_reminder():
+    try:
+        data = request.json
+        reminders.insert_one(data)
+        return jsonify({"message": "Reminder created successfully"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(port), debug=True)
-
