@@ -130,6 +130,18 @@ def add_guest():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/guests/<email>', methods=['PUT'])
+def update_guest_status(email):
+    try:
+        data = request.json
+        result = guests.update_one({"email": email}, {"$set": data})
+        if result.matched_count == 0:
+            return jsonify({"error": "Guest not found"}), 404
+        return jsonify({"message": "Guest status updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/guests/<guest_id>', methods=['DELETE'])
 def delete_guest(guest_id):
     try:
