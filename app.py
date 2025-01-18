@@ -81,10 +81,23 @@ def get_events():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+from datetime import datetime
+
 @app.route('/api/events', methods=['POST'])
 def create_event():
     try:
         data = request.json
+
+        # קבלת תאריך מהבקשה
+        date_str = data.get('date')  # תאריך בפורמט DD-MM-YYYY HH:MM
+
+        # המרת התאריך לפורמט ISO 8601
+        date_iso = datetime.strptime(date_str, "%d-%m-%Y %H:%M").isoformat()
+
+        # עדכון התאריך בפורמט ISO בבקשה
+        data['date'] = date_iso
+
+        # שמירת האירוע במסד הנתונים
         events.insert_one(data)
         return jsonify({"message": "Event created successfully"}), 201
     except Exception as e:
