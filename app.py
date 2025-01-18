@@ -90,25 +90,20 @@ def get_events():
 
 
 
+from datetime import datetime
+
 @app.route('/api/events', methods=['POST'])
 def create_event():
     try:
         data = request.json
-
-        # קבלת תאריך מהבקשה
-        date_str = data.get('date')  # תאריך בפורמט DD-MM-YYYY HH:MM
-
-        # המרת התאריך לפורמט ISO 8601
-        date_iso = datetime.strptime(date_str, "%d-%m-%Y %H:%M").isoformat()
-
-        # עדכון התאריך בפורמט ISO בבקשה
-        data['date'] = date_iso
-
-        # שמירת האירוע במסד הנתונים
+        # שינוי תאריך לפורמט DD-MM-YYYY HH:MM
+        date = datetime.strptime(data['date'], '%d-%m-%Y %H:%M')
+        data['date'] = date.strftime('%d-%m-%Y %H:%M')
         events.insert_one(data)
         return jsonify({"message": "Event created successfully"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/events/<event_id>', methods=['PUT'])
 def update_event(event_id):
