@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from datetime import datetime
 import os
 
 # Load environment variables
@@ -77,11 +78,17 @@ def delete_user(email):
 def get_events():
     try:
         all_events = list(events.find({}, {'_id': False}))
+
+        # המרת תאריכים חזרה לפורמט DD-MM-YYYY HH:MM
+        for event in all_events:
+            event['date'] = datetime.fromisoformat(event['date']).strftime("%d-%m-%Y %H:%M")
+
         return jsonify(all_events), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-from datetime import datetime
+
+
 
 @app.route('/api/events', methods=['POST'])
 def create_event():
