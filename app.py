@@ -78,10 +78,6 @@ def delete_user(email):
 def get_events():
     try:
         all_events = list(events.find({}, {'_id': False}))
-        # המרת תאריכים לפורמט DD-MM-YYYY HH:MM
-        for event in all_events:
-            if 'date' in event:
-                event['date'] = datetime.fromisoformat(event['date']).strftime('%d-%m-%Y %H:%M')
         return jsonify(all_events), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -93,13 +89,9 @@ def get_events():
 def create_event():
     try:
         data = request.json
-        # המרת התאריך מ-DD-MM-YYYY HH:MM לפורמט ISO
-        date = datetime.strptime(data['date'], '%d-%m-%Y %H:%M')
-        data['date'] = date.isoformat()  # שמירה בפורמט ISO
+        # שמירת הנתונים כפי שהם, כולל התאריך
         events.insert_one(data)
         return jsonify({"message": "Event created successfully"}), 201
-    except ValueError:
-        return jsonify({"error": "Invalid date format. Expected DD-MM-YYYY HH:MM"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -108,16 +100,10 @@ def create_event():
 def update_event(event_id):
     try:
         data = request.json
-        if 'date' in data:
-            # המרת התאריך לפורמט ISO
-            date = datetime.strptime(data['date'], '%d-%m-%Y %H:%M')
-            data['date'] = date.isoformat()
         result = events.update_one({"_id": event_id}, {"$set": data})
         if result.matched_count == 0:
             return jsonify({"error": "Event not found"}), 404
         return jsonify({"message": "Event updated successfully"}), 200
-    except ValueError:
-        return jsonify({"error": "Invalid date format. Expected DD-MM-YYYY HH:MM"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
