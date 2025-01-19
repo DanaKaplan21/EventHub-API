@@ -162,7 +162,7 @@ def add_guest():
 def update_guest_status(email):
     try:
         data = request.json
-        result = guests.update_one({"email": email}, {"$set": data})
+        result = guests.update_one({"email": email}, {"$set": {"status": data.get("status")}})
         if result.matched_count == 0:
             return jsonify({"error": "Guest not found"}), 404
         return jsonify({"message": "Guest status updated successfully"}), 200
