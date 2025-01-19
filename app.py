@@ -78,14 +78,14 @@ def delete_user(email):
 ### **Events Routes**
 
 # פונקציה לפירוש תאריכים
-def parse_date(date_str):
-    formats = ["%d-%m-%Y", "%m/%d/%Y", "%Y-%m-%d", "%d-%m-%Y %H:%M:%S"]
-    for fmt in formats:
-        try:
-            return datetime.strptime(date_str, fmt)
-        except ValueError:
-            continue
-    raise ValueError(f"Date format not supported: {date_str}")
+# def parse_date(date_str):
+#     formats = ["%d-%m-%Y", "%m/%d/%Y", "%Y-%m-%d", "%d-%m-%Y %H:%M:%S"]
+#     for fmt in formats:
+#         try:
+#             return datetime.strptime(date_str, fmt)
+#         except ValueError:
+#             continue
+#     raise ValueError(f"Date format not supported: {date_str}")
 
 @app.route('/api/events', methods=['GET'])
 def get_events():
@@ -101,12 +101,9 @@ def get_events():
 def create_event():
     try:
         data = request.json
-        if "date" in data:
-            data["date"] = parse_date(data["date"])  # המרה של התאריך לפורמט נכון
+        # לא מבצעים המרה של התאריך
         events.insert_one(data)
         return jsonify({"message": "Event created successfully"}), 201
-    except ValueError as ve:
-        return jsonify({"error": str(ve)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
