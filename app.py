@@ -140,19 +140,37 @@ def get_guests(event_id):
         event = events.find_one({"_id": ObjectId(event_id)}, {"invitees": 1, "_id": 0})
         if not event or "invitees" not in event:
             return jsonify([]), 200  # אם אין מוזמנים, מחזירים רשימה ריקה
-        return jsonify(event["invitees"]), 200  # מחזירים את רשימת המוזמנים
+
+        # עיבוד רשימת המוזמנים להוספת סטטוס ברירת מחדל
+        invitees = event["invitees"]
+        processed_invitees = [
+            {"email": invitee, "status": "Invited"} if isinstance(invitee, str) else invitee
+            for invitee in invitees
+        ]
+
+        return jsonify(processed_invitees), 200  # מחזירים את רשימת המוזמנים המעובדת
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/guests', methods=['POST'])
 def add_guest():
     try:
         data = request.json
-        print("Received data:", data)  # הוספת לוג
-        guests.insert_one(data)
+
+        # בדיקת שדה סטטוס והוספת ברירת מחדל "Invited"
+        if "status" not in data or not data["status"]:
+            data["status"] = "Invited"
+
+        # הוספת המוזמן עם אימייל וסטטוס בלבד
+        guests.insert_one({
+            "event_id": data["event_id"],
+            "email": data["email"],
+            "status": data["status"]
+        })
+
         return jsonify({"message": "Guest added successfully"}), 201
     except Exception as e:
-        print("Error:", str(e))
         return jsonify({"error": str(e)}), 500
 
 
