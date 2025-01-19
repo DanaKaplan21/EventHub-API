@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from datetime import datetime
+from bson import ObjectId  # הוספת יבוא ל-ObjectId
 import os
 
 # Load environment variables
@@ -108,11 +109,19 @@ def create_event():
         return jsonify({"error": str(e)}), 500
 
 
+
 @app.route('/api/events/<event_id>', methods=['PUT'])
 def update_event(event_id):
     try:
+        # ניסיון להמיר את ה-ID ל-ObjectId
+        try:
+            object_id = ObjectId(event_id)
+        except Exception:
+            return jsonify({"error": "Invalid event ID format"}), 400
+
+        # עדכון האירוע
         data = request.json
-        result = events.update_one({"_id": event_id}, {"$set": data})
+        result = events.update_one({"_id": object_id}, {"$set": data})
         if result.matched_count == 0:
             return jsonify({"error": "Event not found"}), 404
         return jsonify({"message": "Event updated successfully"}), 200
