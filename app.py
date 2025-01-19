@@ -151,9 +151,11 @@ def get_guests(event_id):
 def add_guest():
     try:
         data = request.json
+        print("Received data:", data)  # הוספת לוג
         guests.insert_one(data)
         return jsonify({"message": "Guest added successfully"}), 201
     except Exception as e:
+        print("Error:", str(e))
         return jsonify({"error": str(e)}), 500
 
 
