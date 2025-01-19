@@ -28,6 +28,8 @@ except Exception as e:
     guests = None
     reminders = None
 
+
+
 @app.route('/', methods=['GET'])
 def home():
     return "API is running!"
@@ -73,6 +75,16 @@ def delete_user(email):
         return jsonify({"error": str(e)}), 500
 
 ### **Events Routes**
+
+# פונקציה לפירוש תאריכים
+def parse_date(date_str):
+    formats = ["%d-%m-%Y", "%m/%d/%Y", "%Y-%m-%d", "%d-%m-%Y %H:%M:%S"]
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"Date format not supported: {date_str}")
 
 @app.route('/api/events', methods=['GET'])
 def get_events():
