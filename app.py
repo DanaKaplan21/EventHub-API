@@ -77,16 +77,6 @@ def delete_user(email):
 
 ### **Events Routes**
 
-# פונקציה לפירוש תאריכים
-# def parse_date(date_str):
-#     formats = ["%d-%m-%Y", "%m/%d/%Y", "%Y-%m-%d", "%d-%m-%Y %H:%M:%S"]
-#     for fmt in formats:
-#         try:
-#             return datetime.strptime(date_str, fmt)
-#         except ValueError:
-#             continue
-#     raise ValueError(f"Date format not supported: {date_str}")
-
 @app.route('/api/events', methods=['GET'])
 def get_events():
     try:
@@ -146,8 +136,11 @@ def delete_event(event_id):
 @app.route('/api/guests/<event_id>', methods=['GET'])
 def get_guests(event_id):
     try:
-        event_guests = list(guests.find({"event_id": event_id}, {'_id': False}))
-        return jsonify(event_guests), 200
+        # ניסיון לאתר את האירוע בקולקציה
+        event = events.find_one({"_id": ObjectId(event_id)}, {"invitees": 1, "_id": 0})
+        if not event or "invitees" not in event:
+            return jsonify([]), 200  # אם אין מוזמנים, מחזירים רשימה ריקה
+        return jsonify(event["invitees"]), 200  # מחזירים את רשימת המוזמנים
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
