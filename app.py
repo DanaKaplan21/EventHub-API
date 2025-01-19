@@ -97,14 +97,16 @@ def get_events():
 
 
 
-
 @app.route('/api/events', methods=['POST'])
 def create_event():
     try:
         data = request.json
-        # שמירת הנתונים כפי שהם, כולל התאריך
+        if "date" in data:
+            data["date"] = parse_date(data["date"])  # המרה של התאריך לפורמט נכון
         events.insert_one(data)
         return jsonify({"message": "Event created successfully"}), 201
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -128,11 +130,11 @@ def update_event(event_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/api/events/<event_id>', methods=['DELETE'])
 def delete_event(event_id):
     try:
-        result = events.delete_one({"_id": event_id})
+        object_id = ObjectId(event_id)  # המרה ל-ObjectId
+        result = events.delete_one({"_id": object_id})
         if result.deleted_count == 0:
             return jsonify({"error": "Event not found"}), 404
         return jsonify({"message": "Event deleted successfully"}), 200
@@ -140,7 +142,6 @@ def delete_event(event_id):
         return jsonify({"error": str(e)}), 500
 
 ### **Guests Routes**
-
 @app.route('/api/guests/<event_id>', methods=['GET'])
 def get_guests(event_id):
     try:
@@ -157,6 +158,7 @@ def add_guest():
         return jsonify({"message": "Guest added successfully"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/guests/<email>', methods=['PUT'])
 def update_guest_status(email):
