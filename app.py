@@ -171,11 +171,11 @@ def update_guest_status(email):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/api/guests/<guest_id>', methods=['DELETE'])
 def delete_guest(guest_id):
     try:
-        result = guests.delete_one({"_id": guest_id})
+        object_id = ObjectId(guest_id)  # המרה ל-ObjectId
+        result = guests.delete_one({"_id": object_id})
         if result.deleted_count == 0:
             return jsonify({"error": "Guest not found"}), 404
         return jsonify({"message": "Guest deleted successfully"}), 200
