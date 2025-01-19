@@ -101,7 +101,11 @@ def get_events():
 def create_event():
     try:
         data = request.json
-        # לא מבצעים המרה של התאריך
+        if "date" in data:
+            data["date"] = data["date"]  # שמירה של התאריך כפי שהוא
+        if "invitees" in data and isinstance(data["invitees"], list):
+            # ודא שרשימת המוזמנים היא רשימה תקינה
+            data["invitees"] = data["invitees"]
         events.insert_one(data)
         return jsonify({"message": "Event created successfully"}), 201
     except Exception as e:
