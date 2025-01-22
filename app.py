@@ -171,13 +171,19 @@ def add_guest():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 def update_invitees_format():
     try:
         for event in db.events.find():
+            # עדכון הסטטוס של כל מוזמן במידה ואין סטטוס מוגדר
             updated_invitees = [
-                {"email": invitee, "status": "Invited"} if isinstance(invitee, str) else invitee
+                {"email": invitee["email"], "status": invitee.get("status", "Invited")}
+                if isinstance(invitee, dict) else
+                {"email": invitee, "status": "Invited"}
                 for invitee in event.get("invitees", [])
             ]
+
+            # עדכון הקולקציה
             db.events.update_one({"_id": event["_id"]}, {"$set": {"invitees": updated_invitees}})
         print("All invitees updated successfully.")
     except Exception as e:
