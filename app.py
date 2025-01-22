@@ -105,19 +105,12 @@ def create_event():
         return jsonify({"error": str(e)}), 500
 
 
-
 @app.route('/api/events/<event_id>', methods=['PUT'])
 def update_event(event_id):
     try:
-        # ניסיון להמיר את ה-ID ל-ObjectId
-        try:
-            object_id = ObjectId(event_id)
-        except Exception:
-            return jsonify({"error": "Invalid event ID format"}), 400
-
         # עדכון האירוע
         data = request.json
-        result = events.update_one({"_id": object_id}, {"$set": data})
+        result = events.update_one({"_id": event_id}, {"$set": data})
         if result.matched_count == 0:
             return jsonify({"error": "Event not found"}), 404
         return jsonify({"message": "Event updated successfully"}), 200
@@ -180,10 +173,21 @@ def add_guest():
 @app.route('/api/guests/<email>', methods=['PUT'])
 def update_guest_status(email):
     try:
-        data = request.json
-        result = guests.update_one({"email": email}, {"$set": {"status": data.get("status")}})
-        if result.matched_count == 0:
+        # חיפוש האירוע שבו נמצא המוזמן לפי ה-email
+        event = events.find_one({"invitees.email": email})
+
+        if not event:
             return jsonify({"error": "Guest not found"}), 404
+
+        # עדכון הסטטוס של המוזמן ברשימת המוזמנים
+        result = events.update_one(
+            {"_id": event["_id"], "invitees.email": email},
+            {"$set": {"invitees.$.status": request.json.get("status")}}
+        )
+
+        if result.modified_count == 0:
+            return jsonify({"error": "Failed to update guest status"}), 400
+
         return jsonify({"message": "Guest status updated successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
