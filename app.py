@@ -93,7 +93,7 @@ def get_events():
 def create_event():
     try:
         data = request.json
-        data["_id"] = uuid.uuid4()
+        data["_id"] = str(uuid.uuid4())
         if "date" in data:
             data["date"] = data["date"]  # שמירה של התאריך כפי שהוא
         if "invitees" in data and isinstance(data["invitees"], list):
