@@ -80,7 +80,7 @@ def delete_user(email):
 @app.route('/api/events', methods=['GET'])
 def get_events():
     try:
-        all_events = list(events.find({}, {'_id': False}))
+        all_events = list(events.find())
         return jsonify(all_events), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
