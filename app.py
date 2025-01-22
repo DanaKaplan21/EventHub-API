@@ -140,7 +140,7 @@ def delete_event(event_id):
 def get_guests(event_id):
     try:
         # ניסיון לאתר את האירוע בקולקציה
-        event = events.find_one({"_id": ObjectId(event_id)}, {"invitees": 1, "_id": 0})
+        event = events.find_one({"_id": event_id})
         if not event or "invitees" not in event:
             return jsonify([]), 200  # אם אין מוזמנים, מחזירים רשימה ריקה
 
