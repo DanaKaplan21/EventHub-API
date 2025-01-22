@@ -1,3 +1,5 @@
+import uuid
+
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -80,7 +82,7 @@ def delete_user(email):
 @app.route('/api/events', methods=['GET'])
 def get_events():
     try:
-        all_events = list(events.find())
+        all_events = list(events.find({}, {'_id': False}))
         return jsonify(all_events), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -91,6 +93,7 @@ def get_events():
 def create_event():
     try:
         data = request.json
+        data._id = uuid.uuid4()
         if "date" in data:
             data["date"] = data["date"]  # שמירה של התאריך כפי שהוא
         if "invitees" in data and isinstance(data["invitees"], list):
