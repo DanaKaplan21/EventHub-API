@@ -148,28 +148,43 @@ def get_guests(event_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/api/guests', methods=['POST'])
 def add_guest():
     try:
         data = request.json
+        event_id = data["event_id"]
+        email = data["email"]
+        status = data.get("status", "Invited")
 
-        # בדיקת שדה סטטוס והוספת ברירת מחדל "Invited"
-        if "status" not in data or not data["status"]:
-            data["status"] = "Invited"
+        event = events.find_one({"_id": event_id})
+        if not event:
+            return jsonify({"error": "Event not found"}), 404
 
-        # הוספת המוזמן עם אימייל וסטטוס בלבד
-        guests.insert_one({
-            "event_id": data["event_id"],
-            "email": data["email"],
-            "status": data["status"]
-        })
+        invitees = event.get("invitees", [])
+        if any(invitee.get("email") == email for invitee in invitees):
+            return jsonify({"error": "Guest already exists"}), 400
 
+        # הוספת מוזמן חדש
+        invitees.append({"email": email, "status": status})
+        events.update_one({"_id": event_id}, {"$set": {"invitees": invitees}})
         return jsonify({"message": "Guest added successfully"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+def update_invitees_format():
+    try:
+        for event in db.events.find():
+            updated_invitees = [
+                {"email": invitee, "status": "Invited"} if isinstance(invitee, str) else invitee
+                for invitee in event.get("invitees", [])
+            ]
+            db.events.update_one({"_id": event["_id"]}, {"$set": {"invitees": updated_invitees}})
+        print("All invitees updated successfully.")
+    except Exception as e:
+        print(f"Error occurred while updating invitees: {e}")
+
 @app.route('/api/guests/<event_id>/<email>', methods=['PUT'])
-def update_guest_status_string_format(event_id, email):
+def update_guest_status(event_id, email):
     try:
         # חיפוש האירוע שבו נמצא המוזמן
         event = events.find_one({"_id": event_id})
@@ -177,17 +192,19 @@ def update_guest_status_string_format(event_id, email):
             return jsonify({"error": "Event not found"}), 404
 
         invitees = event.get("invitees", [])
-        if email not in invitees:
+        # חיפוש המוזמן ברשימה
+        guest_found = False
+        for invitee in invitees:
+            if invitee.get("email") == email:
+                invitee["status"] = request.json.get("status", "Invited")
+                guest_found = True
+                break
+
+        if not guest_found:
             return jsonify({"error": "Guest not found in the specified event"}), 404
 
-        # החלפת המחרוזת עם אובייקט שמכיל סטטוס מעודכן
-        updated_invitees = [
-            {"email": invitee, "status": request.json.get("status")} if invitee == email else invitee
-            for invitee in invitees
-        ]
-
-        # עדכון רשימת המוזמנים באירוע
-        events.update_one({"_id": event_id}, {"$set": {"invitees": updated_invitees}})
+        # עדכון האירוע עם רשימת המוזמנים המעודכנת
+        events.update_one({"_id": event_id}, {"$set": {"invitees": invitees}})
         return jsonify({"message": "Guest status updated successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
