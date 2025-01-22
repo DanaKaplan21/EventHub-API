@@ -155,35 +155,56 @@ def get_guests(event_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/api/guests', methods=['POST'])
 def add_guest():
     try:
         data = request.json
+        event_id = data["event_id"]
+        email = data["email"]
 
-        # בדיקת שדה סטטוס והוספת ברירת מחדל "Invited"
-        if "status" not in data or not data["status"]:
-            data["status"] = "Invited"
+        # בדיקת אם יש סטטוס ואם לא להוסיף סטטוס ברירת מחדל
+        status = data.get("status", "Invited")
 
-        # הוספת המוזמן עם אימייל וסטטוס בלבד
-        guests.insert_one({
-            "event_id": data["event_id"],
-            "email": data["email"],
-            "status": data["status"]
-        })
+        # מציאת האירוע
+        event = events.find_one({"_id": event_id})
+        if not event:
+            return jsonify({"error": "Event not found"}), 404
+
+        # בדיקה אם המוזמן כבר קיים ברשימת invitees
+        for invitee in event.get("invitees", []):
+            if invitee["email"] == email:
+                return jsonify({"error": "Guest already exists"}), 400
+
+        # הוספת המוזמן לרשימת המוזמנים של האירוע
+        events.update_one(
+            {"_id": event_id},
+            {"$push": {"invitees": {"email": email, "status": status}}}
+        )
 
         return jsonify({"message": "Guest added successfully"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
+
 @app.route('/api/guests/<email>', methods=['PUT'])
 def update_guest_status(email):
     try:
-        data = request.json
-        result = guests.update_one({"email": email}, {"$set": {"status": data.get("status")}})
-        if result.matched_count == 0:
+        # מציאת האירוע שבו נמצא המוזמן
+        event = events.find_one({"invitees.email": email})  # חיפוש לפי המוזמנים
+
+        if not event:
             return jsonify({"error": "Guest not found"}), 404
+
+        # עדכון הסטטוס של המוזמן בתוך האירוע
+        result = events.update_one(
+            {"_id": event["_id"], "invitees.email": email},  # איתור האירוע והמוזמן
+            {"$set": {"invitees.$.status": request.json.get("status")}}  # עדכון הסטטוס
+        )
+
+        if result.modified_count == 0:
+            return jsonify({"error": "Failed to update guest status"}), 400
+
         return jsonify({"message": "Guest status updated successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
