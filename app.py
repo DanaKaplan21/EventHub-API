@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from datetime import datetime
-from bson import ObjectId  # הוספת יבוא ל-ObjectId
+from bson import ObjectId
 import os
 
 # Load environment variables
@@ -95,9 +95,8 @@ def create_event():
         data = request.json
         data["_id"] = str(uuid.uuid4())
         if "date" in data:
-            data["date"] = data["date"]  # שמירה של התאריך כפי שהוא
+            data["date"] = data["date"]
         if "invitees" in data and isinstance(data["invitees"], list):
-            # ודא שרשימת המוזמנים היא רשימה תקינה
             data["invitees"] = data["invitees"]
         events.insert_one(data)
         return jsonify({"message": "Event created successfully"}), 201
@@ -108,7 +107,6 @@ def create_event():
 @app.route('/api/events/<event_id>', methods=['PUT'])
 def update_event(event_id):
     try:
-        # עדכון האירוע
         data = request.json
         result = events.update_one({"_id": event_id}, {"$set": data})
         if result.matched_count == 0:
@@ -120,7 +118,7 @@ def update_event(event_id):
 @app.route('/api/events/<event_id>', methods=['DELETE'])
 def delete_event(event_id):
     try:
-        object_id = ObjectId(event_id)  # המרה ל-ObjectId
+        object_id = ObjectId(event_id)
         result = events.delete_one({"_id": object_id})
         if result.deleted_count == 0:
             return jsonify({"error": "Event not found"}), 404
@@ -132,19 +130,17 @@ def delete_event(event_id):
 @app.route('/api/guests/<event_id>', methods=['GET'])
 def get_guests(event_id):
     try:
-        # ניסיון לאתר את האירוע בקולקציה
         event = events.find_one({"_id": event_id})
         if not event or "invitees" not in event:
-            return jsonify([]), 200  # אם אין מוזמנים, מחזירים רשימה ריקה
+            return jsonify([]), 200
 
-        # עיבוד רשימת המוזמנים להוספת סטטוס ברירת מחדל
         invitees = event["invitees"]
         processed_invitees = [
             {"email": invitee, "status": "Invited"} if isinstance(invitee, str) else invitee
             for invitee in invitees
         ]
 
-        return jsonify(processed_invitees), 200  # מחזירים את רשימת המוזמנים המעובדת
+        return jsonify(processed_invitees), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -164,7 +160,6 @@ def add_guest():
         if any(invitee.get("email") == email for invitee in invitees):
             return jsonify({"error": "Guest already exists"}), 400
 
-        # הוספת מוזמן חדש
         invitees.append({"email": email, "status": status})
         events.update_one({"_id": event_id}, {"$set": {"invitees": invitees}})
         return jsonify({"message": "Guest added successfully"}), 201
@@ -175,7 +170,6 @@ def add_guest():
 def update_invitees_format():
     try:
         for event in db.events.find():
-            # עדכון הסטטוס של כל מוזמן במידה ואין סטטוס מוגדר
             updated_invitees = [
                 {"email": invitee["email"], "status": invitee.get("status", "Invited")}
                 if isinstance(invitee, dict) else
@@ -183,7 +177,6 @@ def update_invitees_format():
                 for invitee in event.get("invitees", [])
             ]
 
-            # עדכון הקולקציה
             db.events.update_one({"_id": event["_id"]}, {"$set": {"invitees": updated_invitees}})
         print("All invitees updated successfully.")
     except Exception as e:
@@ -192,13 +185,11 @@ def update_invitees_format():
 @app.route('/api/guests/<event_id>/<email>', methods=['PUT'])
 def update_guest_status(event_id, email):
     try:
-        # חיפוש האירוע שבו נמצא המוזמן
         event = events.find_one({"_id": event_id})
         if not event:
             return jsonify({"error": "Event not found"}), 404
 
         invitees = event.get("invitees", [])
-        # חיפוש המוזמן ברשימה
         guest_found = False
         for invitee in invitees:
             if invitee.get("email") == email:
@@ -209,7 +200,6 @@ def update_guest_status(event_id, email):
         if not guest_found:
             return jsonify({"error": "Guest not found in the specified event"}), 404
 
-        # עדכון האירוע עם רשימת המוזמנים המעודכנת
         events.update_one({"_id": event_id}, {"$set": {"invitees": invitees}})
         return jsonify({"message": "Guest status updated successfully"}), 200
     except Exception as e:
@@ -220,7 +210,7 @@ def update_guest_status(event_id, email):
 @app.route('/api/guests/<guest_id>', methods=['DELETE'])
 def delete_guest(guest_id):
     try:
-        object_id = ObjectId(guest_id)  # המרה ל-ObjectId
+        object_id = ObjectId(guest_id)
         result = guests.delete_one({"_id": object_id})
         if result.deleted_count == 0:
             return jsonify({"error": "Guest not found"}), 404
@@ -228,7 +218,6 @@ def delete_guest(guest_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-### **Reminders Routes**
 
 @app.route('/api/reminders/<event_id>', methods=['GET'])
 def get_reminders(event_id):
